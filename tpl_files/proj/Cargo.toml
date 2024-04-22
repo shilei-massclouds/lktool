@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arch_boot = { path = "../arch_boot" }
+arch_boot = { git = "ssh://git@github.com/shilei-massclouds/arch_boot.git" }
 
 [build-dependencies]
-axconfig = { path = "../axconfig" }
+axconfig = { git = "ssh://git@github.com/shilei-massclouds/axconfig.git" }
