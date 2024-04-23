@@ -1,8 +1,8 @@
-use std::env;
+use std::{env, process, fs};
 use std::io::Result;
-use std::process;
-use std::fs;
 use clap::{Args, Parser, Subcommand};
+
+type ProcessResult = Result<process::ExitStatus>;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -20,8 +20,6 @@ enum Commands {
     Build,
     /// Run kernel
     Run,
-    /// Adds files to myapp
-    Add(AddArgs),
 }
 
 #[derive(Args)]
@@ -33,11 +31,6 @@ struct NewArgs {
     root: String,
 }
 
-#[derive(Args)]
-struct AddArgs {
-    name: Option<String>,
-}
-
 fn main() {
     let cli = Cli::parse();
 
@@ -45,44 +38,30 @@ fn main() {
     // matches just as you would the top level cmd
     match &cli.command {
         Commands::New(args) => {
-            create_project(args).unwrap_or_else(|e| {
-                panic!("fatal error: {:?}", e);
-            })
+            create_project(args)
         },
         Commands::Build => {
-            build().unwrap_or_else(|e| {
-                panic!("fatal error: {:?}", e);
-            })
+            build()
         },
         Commands::Run => {
-            run().unwrap_or_else(|e| {
-                panic!("fatal error: {:?}", e);
-            })
+            run()
         },
-        Commands::Add(name) => {
-            println!("'myapp add' was used, name is: {:?}", name.name)
-        }
-    }
+    }.unwrap_or_else(|e| {
+        panic!("fatal error: {:?}", e);
+    });
 }
 
-fn build() -> Result<()> {
-    let _output = process::Command::new("make").output()?;
-    println!("Build proj ok!");
-    Ok(())
+fn build() -> ProcessResult {
+    let mut child = process::Command::new("make").spawn()?;
+    child.wait()
 }
 
-fn run() -> Result<()> {
-    /*
-    let output = process::Command::new("make").arg("run").output()?;
-    println!("Run proj ok! {:?}", output);
-    */
+fn run() -> ProcessResult {
     let mut child = process::Command::new("make").arg("run").spawn()?;
-    let _result = child.wait().unwrap();
-    println!("Run proj ok!");
-    Ok(())
+    child.wait()
 }
 
-fn create_project(args: &NewArgs) -> Result<()> {
+fn create_project(args: &NewArgs) -> ProcessResult {
     println!("new {} --root {}", args.name, args.root);
     let tool_path = get_tool_path().unwrap();
     let tpl_files = tool_path + "/tpl_files/*";
@@ -92,7 +71,7 @@ fn create_project(args: &NewArgs) -> Result<()> {
     let cp_cmd = format!("cp -r {} ./{}/", tpl_files, &args.name);
     let _output = process::Command::new("sh").arg("-c").arg(cp_cmd).output()?;
     println!("Create proj ok!");
-    Ok(())
+    Ok(process::ExitStatus::default())
 }
 
 fn get_tool_path() -> Option<String> {
