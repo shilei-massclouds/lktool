@@ -1,0 +1,8 @@
+[mod_list]
+arch_boot = "ssh://git@github.com/shilei-massclouds/arch_boot"
+axconfig = "ssh://git@github.com/shilei-massclouds/axconfig"
+early_mmu = "ssh://git@github.com/shilei-massclouds/early_mmu"
+early_console = "ssh://git@github.com/shilei-massclouds/early_console"
+
+[top_list]
+top_early_console = "ssh://git@github.com/shilei-massclouds/top_early_console"
