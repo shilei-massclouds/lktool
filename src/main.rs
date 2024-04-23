@@ -82,7 +82,6 @@ fn create_project(args: &NewArgs) -> Result<()> {
     println!("new {} --root {}", args.name, args.root);
     let tool_path = get_tool_path().unwrap();
     let tpl_files = tool_path + "/tpl_files/*";
-    println!("Path of this executable is: {}", tpl_files);
     fs::create_dir(&args.name)?;
     let cp_cmd = format!("cp -r {} ./{}/", tpl_files, &args.name);
     let _output = process::Command::new("sh").arg("-c").arg(cp_cmd).output()?;
@@ -145,7 +144,11 @@ fn put(args: &ModArgs) -> Result<()> {
 fn get_mod_url(name: &str) -> Result<String> {
     let repo_toml: Table = toml::from_str(&fs::read_to_string("Repo.toml")?)?;
     let mod_list = repo_toml.get("mod_list").unwrap();
-    let url = mod_list.get(name).unwrap().as_str().unwrap();
+    if let Some(url) = mod_list.get(name) {
+        return Ok(remove_quotes(url.as_str().unwrap()));
+    }
+    let top_list = repo_toml.get("top_list").unwrap();
+    let url = top_list.get(name).unwrap().as_str().unwrap();
     Ok(remove_quotes(url))
 }
 
