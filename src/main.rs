@@ -23,6 +23,8 @@ enum Commands {
     Get(ModArgs),
     /// Put module back to repo
     Put(ModArgs),
+    /// Make dependency graph
+    DepGraph,
 }
 
 #[derive(Args)]
@@ -60,6 +62,9 @@ fn main() {
         },
         Commands::Put(args) => {
             put(args)
+        },
+        Commands::DepGraph => {
+            depgraph()
         },
     }.unwrap_or_else(|e| {
         println!("fatal error: {:?}", e);
@@ -197,27 +202,8 @@ fn get_tool_path() -> Option<String> {
     Some(path.to_str()?.to_owned())
 }
 
-/*
-use clap::Parser;
-
-/// Simple program to greet a person
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Name of the person to greet
-    #[arg(short, long)]
-    name: String,
-
-    /// Number of times to greet
-    #[arg(short, long, default_value_t = 1)]
-    count: u8,
+fn depgraph() -> Result<()> {
+    let cmd = "cargo depgraph --root proj --hide arch_boot | dot -Tpng > depgraph.png";
+    let _output = process::Command::new("sh").arg("-c").arg(cmd).output()?;
+    Ok(())
 }
-
-fn main() {
-    let args = Args::parse();
-
-    for _ in 0..args.count {
-        println!("Hello {}!", args.name)
-    }
-}
-*/
