@@ -15,6 +15,8 @@ struct Cli {
 enum Commands {
     /// Create a new kernel project
     New(NewArgs),
+    /// List available common modules and top modules
+    List(ListArgs),
     /// Build kernel
     Build,
     /// Run kernel
@@ -42,6 +44,13 @@ struct ModArgs {
     name: String,
 }
 
+#[derive(Args)]
+struct ListArgs {
+    /// Class of modules (e.g. top, test, ..)
+    #[arg(short)]
+    class: Option<String>,
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -50,6 +59,9 @@ fn main() {
     match &cli.command {
         Commands::New(args) => {
             create_project(args)
+        },
+        Commands::List(args) => {
+            list(args)
         },
         Commands::Build => {
             build()
@@ -69,6 +81,23 @@ fn main() {
     }.unwrap_or_else(|e| {
         println!("fatal error: {:?}", e);
     });
+}
+
+fn list(args: &ListArgs) -> Result<()> {
+    let tool_path = get_tool_path().unwrap();
+    let repo_path = format!("{}/tpl_files/Repo.toml", tool_path);
+    let repo_toml: Table = toml::from_str(&fs::read_to_string(repo_path)?)?;
+    let list_name = if let Some(ref class) = args.class {
+        assert!(class == "top", "Now only support 'top'");
+        format!("{}_list", class)
+    } else {
+        "mod_list".to_string()
+    };
+    let list = repo_toml.get(&list_name).unwrap();
+    for name in list.as_table().unwrap().keys() {
+        println!("{}", name);
+    }
+    Ok(())
 }
 
 fn build() -> Result<()> {
