@@ -1,4 +1,4 @@
-use std::{env, process, fs};
+use std::{env, process, fs, io::Write};
 use clap::{Args, Parser, Subcommand};
 use toml::Table;
 use anyhow::{Result, anyhow};
@@ -85,7 +85,31 @@ fn create_project(args: &NewArgs) -> Result<()> {
     fs::create_dir(&args.name)?;
     let cp_cmd = format!("cp -r {} ./{}/", tpl_files, &args.name);
     let _output = process::Command::new("sh").arg("-c").arg(cp_cmd).output()?;
+
+    let url = get_top_url(&args.root, &args.name)?;
+    println!("top url: {} -> {}", args.root, url);
+    setup_root(&args.root, &url, &args.name)?;
     println!("Create proj ok!");
+    Ok(())
+}
+
+fn setup_root(root: &str, url: &str, path: &str) -> Result<()> {
+    let cargo_path = format!("{}/proj/Cargo.toml", path);
+    let mut cargo_toml: Table = toml::from_str(&fs::read_to_string(&cargo_path)?)?;
+    let dep_table = cargo_toml.get_mut("dependencies").unwrap().as_table_mut().unwrap();
+    dep_table.insert(root.to_string(), toml::Value::Table(Table::new()));
+    let detail_table = dep_table.get_mut(root).unwrap().as_table_mut().unwrap();
+    detail_table.insert(
+        String::from("git"),
+        toml::Value::String(format!("{}", url)),
+    );
+    fs::write(&cargo_path, toml::to_string(&cargo_toml)?)?;
+
+    // Append root declaration
+    let code_path = format!("{}/proj/src/main.rs", path);
+    let mut code = fs::OpenOptions::new().append(true).open(code_path)?;
+    let decl = format!("use {} as top;", root);
+    code.write_all(decl.as_bytes())?;
     Ok(())
 }
 
@@ -147,6 +171,14 @@ fn get_mod_url(name: &str) -> Result<String> {
     if let Some(url) = mod_list.get(name) {
         return Ok(remove_quotes(url.as_str().unwrap()));
     }
+    let top_list = repo_toml.get("top_list").unwrap();
+    let url = top_list.get(name).unwrap().as_str().unwrap();
+    Ok(remove_quotes(url))
+}
+
+fn get_top_url(name: &str, path: &str) -> Result<String> {
+    let repo_path = format!("{}/Repo.toml", path);
+    let repo_toml: Table = toml::from_str(&fs::read_to_string(repo_path)?)?;
     let top_list = repo_toml.get("top_list").unwrap();
     let url = top_list.get(name).unwrap().as_str().unwrap();
     Ok(remove_quotes(url))

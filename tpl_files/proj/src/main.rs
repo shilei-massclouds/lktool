@@ -5,5 +5,7 @@ use core::panic::PanicInfo;
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    top_early_console::panic(info)
+    top::panic(info)
 }
+
+// These lines are added by lktool.
