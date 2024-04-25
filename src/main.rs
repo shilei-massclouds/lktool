@@ -3,6 +3,9 @@ use clap::{Args, Parser, Subcommand};
 use toml::Table;
 use anyhow::{Result, anyhow};
 
+const DEFAULT_ARCH_FILE: &str = ".default_arch";
+const DEFAULT_ARCH: &str = "riscv64";
+
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 #[command(propagate_version = true)]
@@ -17,6 +20,8 @@ enum Commands {
     New(NewArgs),
     /// List available common modules and top modules
     List(ListArgs),
+    /// Config kernel
+    Config(ConfigArgs),
     /// Build kernel
     Build,
     /// Run kernel
@@ -45,6 +50,12 @@ struct ModArgs {
 }
 
 #[derive(Args)]
+struct ConfigArgs {
+    /// Arch: one of ["x86_64", "aarch64", "riscv64"]
+    arch: String,
+}
+
+#[derive(Args)]
 struct ListArgs {
     /// Class of modules (e.g. top, test, ..)
     #[arg(short)]
@@ -62,6 +73,9 @@ fn main() {
         },
         Commands::List(args) => {
             list(args)
+        },
+        Commands::Config(args) => {
+            config(args)
         },
         Commands::Build => {
             build()
@@ -100,16 +114,37 @@ fn list(args: &ListArgs) -> Result<()> {
     Ok(())
 }
 
+fn config(args: &ConfigArgs) -> Result<()> {
+    assert!(matches!(args.arch.as_str(), "x86_64" | "aarch64" | "riscv64"));
+    fs::write(DEFAULT_ARCH_FILE, &args.arch)?;
+    Ok(())
+}
+
 fn build() -> Result<()> {
-    let mut child = process::Command::new("make").spawn()?;
+    let arch = default_arch();
+    let mut child = process::Command::new("make")
+        .arg(format!("ARCH={}", arch))
+        .spawn()?;
     child.wait()?;
     Ok(())
 }
 
 fn run() -> Result<()> {
-    let mut child = process::Command::new("make").arg("run").spawn()?;
+    let arch = default_arch();
+    let mut child = process::Command::new("make")
+        .arg(format!("ARCH={}", arch))
+        .arg("run")
+        .spawn()?;
     child.wait()?;
     Ok(())
+}
+
+fn default_arch() -> String {
+    if let Ok(arch) = fs::read_to_string(DEFAULT_ARCH_FILE) {
+        arch.trim().to_owned()
+    } else {
+        DEFAULT_ARCH.to_string()
+    }
 }
 
 fn create_project(args: &NewArgs) -> Result<()> {

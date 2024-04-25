@@ -37,10 +37,6 @@ else
   $(error "LOG" must be one of "off", "error", "warn", "info", "debug", "trace")
 endif
 
-ifeq ($(BUS),pci)
-  ax_feat += bus-pci
-endif
-
 ifeq ($(shell test $(SMP) -gt 1; echo $$?),0)
   lib_feat += smp
 endif
