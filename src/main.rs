@@ -227,6 +227,19 @@ fn put(args: &ModArgs) -> Result<()> {
         return Err(anyhow!("There're some files modified, please handle them first."));
     }
 
+    let child = process::Command::new("git")
+                    .arg("diff")
+                    .arg("@{u}")
+                    .arg("--stat")
+                    .current_dir(format!("./{}", name))
+                    .stdout(process::Stdio::piped())
+                    .spawn()?;
+    let output = child.wait_with_output()?;
+    if output.stdout.len() != 0 {
+        println!("{}", String::from_utf8(output.stdout.clone())?);
+        return Err(anyhow!("These files haven't been pushed. Please handle them first."));
+    }
+
     let mut cargo_toml: Table = toml::from_str(&fs::read_to_string("Cargo.toml")?)?;
     let patch_table = cargo_toml.get_mut("patch").unwrap().as_table_mut().unwrap();
     patch_table.remove(&url);
