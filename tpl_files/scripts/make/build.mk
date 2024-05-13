@@ -25,7 +25,7 @@ else ifeq ($(filter $(MAKECMDGOALS),clippy unittest unittest_no_fail_fast),) # n
   endif
   ifeq ($(APP_TYPE), c)
     $(if $(V), $(info CFLAGS: "$(CFLAGS)") $(info LDFLAGS: "$(LDFLAGS)"))
-  else
+  else ifneq ($(PLATFORM_NAME), um)
     $(if $(V), $(info RUSTFLAGS: "$(RUSTFLAGS)"))
     export RUSTFLAGS
   endif

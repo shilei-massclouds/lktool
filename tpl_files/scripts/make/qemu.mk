@@ -77,12 +77,24 @@ else
   qemu_args-$(ACCEL) += -cpu host -accel kvm
 endif
 
-define run_qemu
-  @printf "    $(CYAN_C)Running$(END_C) on qemu...\n"
-  $(call run_cmd,$(QEMU),$(qemu_args-y))
-endef
+ifeq ($(PLATFORM_NAME), um)
+  define run_qemu
+    @printf "    $(CYAN_C)Running$(END_C) on host...\n"
+    $(call run_cmd,$(OUT_ELF))
+  endef
 
-define run_qemu_debug
-  @printf "    $(CYAN_C)Debugging$(END_C) on qemu...\n"
-  $(call run_cmd,$(QEMU),$(qemu_args-debug))
-endef
+  define run_qemu_debug
+    @printf "    $(CYAN_C)Debugging$(END_C) on host...\n"
+    $(call run_cmd,$(OUT_ELF))
+  endef
+else
+  define run_qemu
+    @printf "    $(CYAN_C)Running$(END_C) on qemu...\n"
+    $(call run_cmd,$(QEMU),$(qemu_args-y))
+  endef
+
+  define run_qemu_debug
+    @printf "    $(CYAN_C)Debugging$(END_C) on qemu...\n"
+    $(call run_cmd,$(QEMU),$(qemu_args-debug))
+  endef
+endif
