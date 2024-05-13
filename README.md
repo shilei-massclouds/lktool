@@ -57,10 +57,10 @@ ls
 目前仅能选择体系结构
 
 ```sh
-lktool config [riscv64|x86_64]
+lktool config [riscv64|x86_64|aarch64|loongarch64|um]
 ```
 
-正在试验加上uml，即内核作为Host Linux的一个进程，方便测试。
+其中，um表示内核作为Host Linux的一个进程的库进行测试。
 
 另外，下步需要能够支持lktool menuconfig，以精细的控制配置选项，以替代features控制的方式。
 
