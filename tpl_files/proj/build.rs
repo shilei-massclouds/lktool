@@ -26,7 +26,10 @@ fn gen_linker_script(arch: &str, platform: &str) -> Result<()> {
         "%KERNEL_BASE%",
         &format!("{:#x}", axconfig::KERNEL_BASE_VADDR),
     );
-    let ld_content = ld_content.replace("%SMP%", &format!("{}", axconfig::SMP));
+    let mut ld_content = ld_content.replace("%SMP%", &format!("{}", axconfig::SMP));
+    if arch == "loongarch64" {
+        ld_content = ld_content.replace(r"*(.got .got.*)", "");
+    }
 
     std::fs::write(fname, ld_content)?;
     Ok(())

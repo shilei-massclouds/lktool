@@ -24,7 +24,14 @@ qemu_args-aarch64 := \
   -machine virt \
   -kernel $(OUT_BIN)
 
+qemu_args-loongarch64 := \
+  -kernel $(OUT_ELF)
+
+ifeq ($(ARCH), loongarch64)
+qemu_args-y := -smp $(SMP) $(qemu_args-$(ARCH))
+else
 qemu_args-y := -m 128M -smp $(SMP) $(qemu_args-$(ARCH))
+endif
 
 ifneq ($(INIT_CMD), )
   qemu_args-y += -append "init=$(INIT_CMD)"

@@ -104,8 +104,13 @@ else ifeq ($(ARCH), aarch64)
   ACCEL ?= n
   PLATFORM_NAME ?= aarch64-qemu-virt
   TARGET := aarch64-unknown-none-softfloat
+else ifeq ($(ARCH), loongarch64)
+  QEMU_LOG := n
+  ACCEL ?= n
+  PLATFORM_NAME ?= loongarch64-qemu-virt
+  TARGET := loongarch64-unknown-none
 else
-  $(error "ARCH" must be one of "x86_64", "riscv64", or "aarch64")
+  $(error "ARCH" must be one of "x86_64", "riscv64", "aarch64" or "loongarch64")
 endif
 
 export AX_ARCH=$(ARCH)

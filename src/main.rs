@@ -115,7 +115,7 @@ fn list(args: &ListArgs) -> Result<()> {
 }
 
 fn config(args: &ConfigArgs) -> Result<()> {
-    assert!(matches!(args.arch.as_str(), "x86_64" | "aarch64" | "riscv64"));
+    assert!(matches!(args.arch.as_str(), "x86_64" | "aarch64" | "riscv64" | "loongarch64"));
     fs::write(DEFAULT_ARCH_FILE, &args.arch)?;
     Ok(())
 }
