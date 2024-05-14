@@ -1,6 +1,6 @@
 use std::{env, process, fs, io::Write};
 use clap::{Args, Parser, Subcommand};
-use toml::Table;
+use toml::{Table, Value, map};
 use anyhow::{Result, anyhow};
 
 const DEFAULT_ARCH_FILE: &str = ".default_arch";
@@ -263,12 +263,18 @@ fn put(args: &ModArgs) -> Result<()> {
 fn get_mod_url(name: &str) -> Result<String> {
     let repo_toml: Table = toml::from_str(&fs::read_to_string("Repo.toml")?)?;
     let mod_list = repo_toml.get("mod_list").unwrap();
-    if let Some(url) = mod_list.get(name) {
-        return Ok(remove_quotes(url.as_str().unwrap()));
+    let url = if let Some(url) = mod_list.get(name) {
+        url
+    } else {
+        let root_list = repo_toml.get("root_list").unwrap();
+        root_list.get(name).ok_or(anyhow!("no {} in root_list", name))?
+    };
+    let mut url = remove_quotes(url.as_str().unwrap());
+    if url.find('/').is_none() {
+        let org = get_default_org(&repo_toml)?;
+        url = format!("{}/{}", org, url);
     }
-    let root_list = repo_toml.get("root_list").unwrap();
-    let url = root_list.get(name).ok_or(anyhow!("no {} in root_list", name))?;
-    Ok(remove_quotes(url.as_str().unwrap()))
+    Ok(url)
 }
 
 fn get_root_url(name: &str, path: &str) -> Result<String> {
@@ -276,7 +282,18 @@ fn get_root_url(name: &str, path: &str) -> Result<String> {
     let repo_toml: Table = toml::from_str(&fs::read_to_string(repo_path)?)?;
     let root_list = repo_toml.get("root_list").unwrap();
     let url = root_list.get(name).unwrap().as_str().unwrap();
-    Ok(remove_quotes(url))
+    let mut url = remove_quotes(url);
+    if url.find('/').is_none() {
+        let org = get_default_org(&repo_toml)?;
+        url = format!("{}/{}", org, url);
+    }
+    Ok(url)
+}
+
+fn get_default_org(toml: &map::Map<String, Value>) -> Result<String> {
+    let default = toml.get("default").unwrap();
+    let org = default.get("org").unwrap();
+    Ok(remove_quotes(org.as_str().unwrap()))
 }
 
 fn remove_quotes(s: &str) -> String {
