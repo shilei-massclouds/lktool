@@ -18,7 +18,7 @@ struct Cli {
 enum Commands {
     /// Create a new kernel project
     New(NewArgs),
-    /// List available common modules and top modules
+    /// List available common modules and root modules
     List(ListArgs),
     /// Config kernel
     Config(ConfigArgs),
@@ -51,13 +51,13 @@ struct ModArgs {
 
 #[derive(Args)]
 struct ConfigArgs {
-    /// Arch: one of ["x86_64", "aarch64", "riscv64"]
+    /// Arch: one of ["x86_64", "aarch64", "riscv64", "loongarch64", "um"]
     arch: String,
 }
 
 #[derive(Args)]
 struct ListArgs {
-    /// Class of modules (e.g. top, test, ..)
+    /// Class of modules (e.g. root, ..)
     #[arg(short)]
     class: Option<String>,
 }
@@ -65,8 +65,6 @@ struct ListArgs {
 fn main() {
     let cli = Cli::parse();
 
-    // You can check for the existence of subcommands, and if found use their
-    // matches just as you would the top level cmd
     match &cli.command {
         Commands::New(args) => {
             create_project(args)
@@ -102,7 +100,7 @@ fn list(args: &ListArgs) -> Result<()> {
     let repo_path = format!("{}/tpl_files/Repo.toml", tool_path);
     let repo_toml: Table = toml::from_str(&fs::read_to_string(repo_path)?)?;
     let list_name = if let Some(ref class) = args.class {
-        assert!(class == "top", "Now only support 'top'");
+        assert!(class == "root", "Now only support 'root'");
         format!("{}_list", class)
     } else {
         "mod_list".to_string()
@@ -157,8 +155,8 @@ fn create_project(args: &NewArgs) -> Result<()> {
     let cp_cmd = format!("cp -r {} ./{}/", tpl_files, &args.name);
     let _output = process::Command::new("sh").arg("-c").arg(cp_cmd).output()?;
 
-    let url = get_top_url(&args.root, &args.name)?;
-    println!("top url: {} -> {}", args.root, url);
+    let url = get_root_url(&args.root, &args.name)?;
+    println!("root url: {} -> {}", args.root, url);
     setup_root(&args.root, &url, &args.name)?;
     println!("Create proj ok!");
     Ok(())
@@ -179,7 +177,7 @@ fn setup_root(root: &str, url: &str, path: &str) -> Result<()> {
     // Append root declaration
     let code_path = format!("{}/proj/src/main.rs", path);
     let mut code = fs::OpenOptions::new().append(true).open(code_path)?;
-    let decl = format!("use {} as top;", root);
+    let decl = format!("use {} as root;", root);
     code.write_all(decl.as_bytes())?;
     Ok(())
 }
@@ -268,16 +266,16 @@ fn get_mod_url(name: &str) -> Result<String> {
     if let Some(url) = mod_list.get(name) {
         return Ok(remove_quotes(url.as_str().unwrap()));
     }
-    let top_list = repo_toml.get("top_list").unwrap();
-    let url = top_list.get(name).ok_or(anyhow!("no {} in top_list", name))?;
+    let root_list = repo_toml.get("root_list").unwrap();
+    let url = root_list.get(name).ok_or(anyhow!("no {} in root_list", name))?;
     Ok(remove_quotes(url.as_str().unwrap()))
 }
 
-fn get_top_url(name: &str, path: &str) -> Result<String> {
+fn get_root_url(name: &str, path: &str) -> Result<String> {
     let repo_path = format!("{}/Repo.toml", path);
     let repo_toml: Table = toml::from_str(&fs::read_to_string(repo_path)?)?;
-    let top_list = repo_toml.get("top_list").unwrap();
-    let url = top_list.get(name).unwrap().as_str().unwrap();
+    let root_list = repo_toml.get("root_list").unwrap();
+    let url = root_list.get(name).unwrap().as_str().unwrap();
     Ok(remove_quotes(url))
 }
 

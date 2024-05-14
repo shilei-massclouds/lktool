@@ -6,5 +6,5 @@ mod lang_item;
 
 #[cfg(target_os = "linux")]
 fn main() {
-    crate::top::runtime_main(0, 0);
+    crate::root::runtime_main(0, 0);
 }

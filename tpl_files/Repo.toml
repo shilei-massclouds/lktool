@@ -3,5 +3,5 @@ boot = "ssh://git@github.com/shilei-massclouds/boot"
 config = "ssh://git@github.com/shilei-massclouds/config"
 earlycon = "ssh://git@github.com/shilei-massclouds/earlycon"
 
-[top_list]
-top_earlycon = "ssh://git@github.com/shilei-massclouds/earlycon"
+[root_list]
+rt_earlycon = "ssh://git@github.com/shilei-massclouds/earlycon"
