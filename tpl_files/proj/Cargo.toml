@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 
 [build-dependencies]
-axconfig = { git = "ssh://git@github.com/shilei-massclouds/axconfig.git" }
+config = { git = "ssh://git@github.com/shilei-massclouds/config.git" }

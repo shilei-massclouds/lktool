@@ -1,10 +1,7 @@
 [mod_list]
-arch_boot = "ssh://git@github.com/shilei-massclouds/arch_boot"
-axconfig = "ssh://git@github.com/shilei-massclouds/axconfig"
-early_mmu = "ssh://git@github.com/shilei-massclouds/early_mmu"
+boot = "ssh://git@github.com/shilei-massclouds/boot"
+config = "ssh://git@github.com/shilei-massclouds/config"
 earlycon = "ssh://git@github.com/shilei-massclouds/earlycon"
-spinbase = "ssh://git@github.com/shilei-massclouds/spinbase"
-kernel_guard_base = "ssh://git@github.com/shilei-massclouds/kernel_guard_base"
 
 [top_list]
 top_earlycon = "ssh://git@github.com/shilei-massclouds/earlycon"

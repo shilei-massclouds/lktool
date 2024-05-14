@@ -295,7 +295,7 @@ fn get_tool_path() -> Option<String> {
 }
 
 fn depgraph() -> Result<()> {
-    let cmd = "cargo depgraph --root proj --hide arch_boot | dot -Tpng > depgraph.png";
+    let cmd = "cargo depgraph --root proj --hide boot | dot -Tpng > depgraph.png";
     let _output = process::Command::new("sh").arg("-c").arg(cmd).output()?;
     Ok(())
 }
