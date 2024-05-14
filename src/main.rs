@@ -185,8 +185,13 @@ fn setup_root(root: &str, url: &str, path: &str) -> Result<()> {
 }
 
 fn get(args: &ModArgs) -> Result<()> {
-    let name = &args.name;
+    let name = args.name.trim_end_matches('/');
     let url = get_mod_url(name)?;
+    let (_, repo) = url.rsplit_once('/').unwrap();
+    if fs::metadata(repo).is_ok() {
+        println!("repo '{}' already exists!", repo);
+        return Ok(());
+    }
 
     let mut child = process::Command::new("git").arg("clone").arg(&url).spawn()?;
     child.wait()?;
@@ -205,20 +210,28 @@ fn get(args: &ModArgs) -> Result<()> {
     let detail_table = url_table.get_mut(name).unwrap().as_table_mut().unwrap();
     detail_table.insert(
         String::from("path"),
-        toml::Value::String(format!("./{}", name)),
+        toml::Value::String(format!("./{}/{}", repo, name))
     );
     fs::write("Cargo.toml", toml::to_string(&cargo_toml)?)?;
+    println!("=====================================");
+    println!("'{}' is in repo '{}'.", name, repo);
+    println!("=====================================");
     Ok(())
 }
 
 fn put(args: &ModArgs) -> Result<()> {
-    let name = &args.name;
+    let name = args.name.trim_end_matches('/');
     let url = get_mod_url(name)?;
+    let (_, repo) = url.rsplit_once('/').unwrap();
+    if fs::metadata(repo).is_err() {
+        println!("repo '{}' doesn't exists!", repo);
+        return Ok(());
+    }
 
     let child = process::Command::new("git")
                     .arg("status")
                     .arg("-s")
-                    .current_dir(format!("./{}", name))
+                    .current_dir(format!("./{}", repo))
                     .stdout(process::Stdio::piped())
                     .spawn()?;
     let output = child.wait_with_output()?;
@@ -231,7 +244,7 @@ fn put(args: &ModArgs) -> Result<()> {
                     .arg("diff")
                     .arg("@{u}")
                     .arg("--stat")
-                    .current_dir(format!("./{}", name))
+                    .current_dir(format!("./{}", repo))
                     .stdout(process::Stdio::piped())
                     .spawn()?;
     let output = child.wait_with_output()?;
@@ -245,7 +258,7 @@ fn put(args: &ModArgs) -> Result<()> {
     patch_table.remove(&url);
     fs::write("Cargo.toml", toml::to_string(&cargo_toml)?)?;
 
-    fs::remove_dir_all(format!("./{}", name))?;
+    fs::remove_dir_all(format!("./{}", repo))?;
     Ok(())
 }
 
@@ -256,8 +269,8 @@ fn get_mod_url(name: &str) -> Result<String> {
         return Ok(remove_quotes(url.as_str().unwrap()));
     }
     let top_list = repo_toml.get("top_list").unwrap();
-    let url = top_list.get(name).unwrap().as_str().unwrap();
-    Ok(remove_quotes(url))
+    let url = top_list.get(name).ok_or(anyhow!("no {} in top_list", name))?;
+    Ok(remove_quotes(url.as_str().unwrap()))
 }
 
 fn get_top_url(name: &str, path: &str) -> Result<String> {

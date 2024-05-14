@@ -26,7 +26,12 @@ fn gen_linker_script(arch: &str, platform: &str) -> Result<()> {
         "%KERNEL_BASE%",
         &format!("{:#x}", axconfig::KERNEL_BASE_VADDR),
     );
+
     let mut ld_content = ld_content.replace("%SMP%", &format!("{}", axconfig::SMP));
+
+    // Note:
+    // For loongarch64, it causes error "too large segment" when we put 'got' into data.
+    // We need to figure out the reason.
     if arch == "loongarch64" {
         ld_content = ld_content.replace(r"*(.got .got.*)", "");
     }
