@@ -186,13 +186,10 @@ fn get(args: &ModArgs) -> Result<()> {
     let name = args.name.trim_end_matches('/');
     let url = get_mod_url(name)?;
     let (_, repo) = url.rsplit_once('/').unwrap();
-    if fs::metadata(repo).is_ok() {
-        println!("repo '{}' already exists!", repo);
-        return Ok(());
+    if fs::metadata(repo).is_err() {
+        let mut child = process::Command::new("git").arg("clone").arg(&url).spawn()?;
+        child.wait()?;
     }
-
-    let mut child = process::Command::new("git").arg("clone").arg(&url).spawn()?;
-    child.wait()?;
 
     let mut cargo_toml: Table = toml::from_str(&fs::read_to_string("Cargo.toml")?)?;
     if !cargo_toml.contains_key("patch") {
@@ -267,7 +264,7 @@ fn get_mod_url(name: &str) -> Result<String> {
         url
     } else {
         let root_list = repo_toml.get("root_list").unwrap();
-        root_list.get(name).ok_or(anyhow!("no {} in root_list", name))?
+        root_list.get(name).ok_or(anyhow!("no {} in mod_list and root_list", name))?
     };
     let mut url = remove_quotes(url.as_str().unwrap());
     if url.find('/').is_none() {
@@ -281,8 +278,8 @@ fn get_root_url(name: &str, path: &str) -> Result<String> {
     let repo_path = format!("{}/Repo.toml", path);
     let repo_toml: Table = toml::from_str(&fs::read_to_string(repo_path)?)?;
     let root_list = repo_toml.get("root_list").unwrap();
-    let url = root_list.get(name).unwrap().as_str().unwrap();
-    let mut url = remove_quotes(url);
+    let url = root_list.get(name).ok_or(anyhow!("no {} in root_list", name))?;
+    let mut url = remove_quotes(url.as_str().unwrap());
     if url.find('/').is_none() {
         let org = get_default_org(&repo_toml)?;
         url = format!("{}/{}", org, url);

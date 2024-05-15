@@ -1,6 +1,5 @@
 # Default configuration
 #   org: default organization for components
-
 [default]
 org = "ssh://git@github.com/shilei-massclouds"
 
@@ -12,13 +11,23 @@ org = "ssh://git@github.com/shilei-massclouds"
 # Style 2 - full path
 #   component-name = "full-repo-url"
 # E.g., foo = "ssh://git@github.com/org_foo/repo_foo"
-
 [mod_list]
 boot = "boot"
 config = "config"
+hal_base = "hal_base"
 earlycon = "earlycon"
+ramdisk = "ramdisk"
+driver_common = "driver_common"
+axerrno = "axerrno"
+axtype = "axtype"
+axlog = "axlog"
+spinirq = "spinirq"
+axalloc = "axalloc"
+allocator = "allocator"
+kernel_guard = "kernel_guard"
 
 # Root components list
 # Styles are just as [mod_list]
 [root_list]
 rt_earlycon = "earlycon"
+rt_ramdisk = "ramdisk"
