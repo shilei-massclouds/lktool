@@ -32,6 +32,8 @@ enum Commands {
     Put(ModArgs),
     /// Make dependency graph
     DepGraph,
+    /// Check patched modules status
+    Status,
 }
 
 #[derive(Args)]
@@ -90,8 +92,11 @@ fn main() {
         Commands::DepGraph => {
             depgraph()
         },
+        Commands::Status => {
+            status()
+        },
     }.unwrap_or_else(|e| {
-        println!("fatal error: {:?}", e);
+        println!("{:?}", e);
     });
 }
 
@@ -117,6 +122,17 @@ fn config(args: &ConfigArgs) -> Result<()> {
         "x86_64" | "aarch64" | "riscv64" | "loongarch64" | "um"
     ));
     fs::write(DEFAULT_ARCH_FILE, &args.arch)?;
+    Ok(())
+}
+
+fn status() -> Result<()> {
+    let toml: Table = toml::from_str(&fs::read_to_string("Cargo.toml")?)?;
+    let table = toml.get("patch").and_then(|p| p.as_table())
+        .ok_or(anyhow!("No patched modules."))?;
+    for url in table.keys() {
+        let (_, repo) = url.rsplit_once('/').unwrap();
+        check_uncommitted_mods(repo)?;
+    }
     Ok(())
 }
 
@@ -223,6 +239,18 @@ fn put(args: &ModArgs) -> Result<()> {
         return Ok(());
     }
 
+    check_uncommitted_mods(repo)?;
+
+    let mut cargo_toml: Table = toml::from_str(&fs::read_to_string("Cargo.toml")?)?;
+    let patch_table = cargo_toml.get_mut("patch").unwrap().as_table_mut().unwrap();
+    patch_table.remove(&url);
+    fs::write("Cargo.toml", toml::to_string(&cargo_toml)?)?;
+
+    fs::remove_dir_all(format!("./{}", repo))?;
+    Ok(())
+}
+
+fn check_uncommitted_mods(repo: &str) -> Result<()> {
     let child = process::Command::new("git")
                     .arg("status")
                     .arg("-s")
@@ -231,10 +259,9 @@ fn put(args: &ModArgs) -> Result<()> {
                     .spawn()?;
     let output = child.wait_with_output()?;
     if output.stdout.len() != 0 {
-        println!("{}", String::from_utf8(output.stdout.clone())?);
-        return Err(anyhow!("There're some files modified, please handle them first."));
+        println!("{}:\n{}", repo, String::from_utf8(output.stdout.clone())?);
+        return Err(anyhow!("Some files modified, please handle them first."));
     }
-
     let child = process::Command::new("git")
                     .arg("diff")
                     .arg("@{u}")
@@ -244,16 +271,9 @@ fn put(args: &ModArgs) -> Result<()> {
                     .spawn()?;
     let output = child.wait_with_output()?;
     if output.stdout.len() != 0 {
-        println!("{}", String::from_utf8(output.stdout.clone())?);
-        return Err(anyhow!("These files haven't been pushed. Please handle them first."));
+        println!("{}:\n{}", repo, String::from_utf8(output.stdout.clone())?);
+        return Err(anyhow!("Some files unpushed, please handle them first."));
     }
-
-    let mut cargo_toml: Table = toml::from_str(&fs::read_to_string("Cargo.toml")?)?;
-    let patch_table = cargo_toml.get_mut("patch").unwrap().as_table_mut().unwrap();
-    patch_table.remove(&url);
-    fs::write("Cargo.toml", toml::to_string(&cargo_toml)?)?;
-
-    fs::remove_dir_all(format!("./{}", repo))?;
     Ok(())
 }
 
