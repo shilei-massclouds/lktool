@@ -25,9 +25,17 @@ spinirq = "spinirq"
 axalloc = "axalloc"
 allocator = "allocator"
 kernel_guard = "kernel_guard"
+mutex = "mutex"
+taskctx = "taskctx"
+wait_queue = "wait_queue"
+run_queue = "run_queue"
+scheduler = "scheduler"
+percpu = "percpu"
+percpu_macros = "percpu_macros"
 
 # Root components list
 # Styles are just as [mod_list]
 [root_list]
 rt_earlycon = "earlycon"
 rt_ramdisk = "ramdisk"
+rt_mutex = "mutex"
