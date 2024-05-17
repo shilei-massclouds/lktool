@@ -2,13 +2,13 @@ use std::io::Result;
 
 fn main() {
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-    let platform = config::PLATFORM;
+    let platform = axconfig::PLATFORM;
     if platform != "dummy" {
         gen_linker_script(&arch, platform).unwrap();
     }
 
     println!("cargo:rustc-cfg=platform=\"{}\"", platform);
-    println!("cargo:rustc-cfg=platform_family=\"{}\"", config::FAMILY);
+    println!("cargo:rustc-cfg=platform_family=\"{}\"", axconfig::FAMILY);
 }
 
 fn gen_linker_script(arch: &str, platform: &str) -> Result<()> {
@@ -24,10 +24,10 @@ fn gen_linker_script(arch: &str, platform: &str) -> Result<()> {
     let ld_content = ld_content.replace("%ARCH%", output_arch);
     let ld_content = ld_content.replace(
         "%KERNEL_BASE%",
-        &format!("{:#x}", config::KERNEL_BASE_VADDR),
+        &format!("{:#x}", axconfig::KERNEL_BASE_VADDR),
     );
 
-    let mut ld_content = ld_content.replace("%SMP%", &format!("{}", config::SMP));
+    let mut ld_content = ld_content.replace("%SMP%", &format!("{}", axconfig::SMP));
 
     // Note:
     // For loongarch64, it causes error "too large segment" when we put 'got' into data.
