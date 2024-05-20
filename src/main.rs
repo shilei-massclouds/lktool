@@ -6,6 +6,8 @@ use anyhow::{Result, anyhow};
 const DEFAULT_ARCH_FILE: &str = ".default_arch";
 const DEFAULT_ARCH: &str = "riscv64";
 
+const CONFIG_FILE: &str = ".config";
+
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 #[command(propagate_version = true)]
@@ -55,6 +57,8 @@ struct ModArgs {
 struct ConfigArgs {
     /// Arch: one of ["x86_64", "aarch64", "riscv64", "loongarch64", "um"]
     arch: String,
+    /// Config: one of ["blk"]
+    conf: Option<String>,
 }
 
 #[derive(Args)]
@@ -122,6 +126,11 @@ fn config(args: &ConfigArgs) -> Result<()> {
         "x86_64" | "aarch64" | "riscv64" | "loongarch64" | "um"
     ));
     fs::write(DEFAULT_ARCH_FILE, &args.arch)?;
+    let _ = fs::remove_file(CONFIG_FILE);
+    if let Some(ref conf) = args.conf {
+        assert_eq!(conf, "blk");
+        fs::write(CONFIG_FILE, "BLK=y")?;
+    }
     Ok(())
 }
 
@@ -147,8 +156,10 @@ fn build() -> Result<()> {
 
 fn run() -> Result<()> {
     let arch = default_arch();
+    let has_blk = blk_config();
     let mut child = process::Command::new("make")
         .arg(format!("ARCH={}", arch))
+        .arg(format!("BLK={}", has_blk))
         .arg("run")
         .spawn()?;
     child.wait()?;
@@ -160,6 +171,15 @@ fn default_arch() -> String {
         arch.trim().to_owned()
     } else {
         DEFAULT_ARCH.to_string()
+    }
+}
+
+fn blk_config() -> String {
+    if let Ok(conf) = fs::read_to_string(CONFIG_FILE) {
+        assert_eq!(conf.trim(), "BLK=y");
+        "y".to_owned()
+    } else {
+        "n".to_owned()
     }
 }
 
