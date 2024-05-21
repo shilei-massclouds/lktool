@@ -1,12 +1,13 @@
 use std::{env, process, fs, io::Write};
+use std::path::Path;
+use std::collections::BTreeMap;
 use clap::{Args, Parser, Subcommand};
 use toml::{Table, Value, map};
 use anyhow::{Result, anyhow};
 
 const DEFAULT_ARCH_FILE: &str = ".default_arch";
 const DEFAULT_ARCH: &str = "riscv64";
-
-const CONFIG_FILE: &str = ".config";
+const ROOT_FILE: &str = ".root";
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -20,6 +21,8 @@ struct Cli {
 enum Commands {
     /// Create a new kernel project
     New(NewArgs),
+    /// Prepare for this project
+    Prepare,
     /// List available common modules and root modules
     List(ListArgs),
     /// Config kernel
@@ -75,6 +78,9 @@ fn main() {
         Commands::New(args) => {
             create_project(args)
         },
+        Commands::Prepare => {
+            prepare()
+        },
         Commands::List(args) => {
             list(args)
         },
@@ -126,11 +132,6 @@ fn config(args: &ConfigArgs) -> Result<()> {
         "x86_64" | "aarch64" | "riscv64" | "loongarch64" | "um"
     ));
     fs::write(DEFAULT_ARCH_FILE, &args.arch)?;
-    let _ = fs::remove_file(CONFIG_FILE);
-    if let Some(ref conf) = args.conf {
-        assert_eq!(conf, "blk");
-        fs::write(CONFIG_FILE, "BLK=y")?;
-    }
     Ok(())
 }
 
@@ -147,8 +148,13 @@ fn status() -> Result<()> {
 
 fn build() -> Result<()> {
     let arch = default_arch();
+    let conf = parse_conf()?;
+    let has_blk = blk_config(&conf);
+    let global_cfg = _global_cfg(&conf);
     let mut child = process::Command::new("make")
         .arg(format!("ARCH={}", arch))
+        .arg(format!("BLK={}", has_blk))
+        .arg(format!("GLOBAL_CFG={}", global_cfg))
         .spawn()?;
     child.wait()?;
     Ok(())
@@ -156,14 +162,31 @@ fn build() -> Result<()> {
 
 fn run() -> Result<()> {
     let arch = default_arch();
-    let has_blk = blk_config();
+    let conf = parse_conf()?;
+    let has_blk = blk_config(&conf);
+    let global_cfg = _global_cfg(&conf);
     let mut child = process::Command::new("make")
         .arg(format!("ARCH={}", arch))
         .arg(format!("BLK={}", has_blk))
+        .arg(format!("GLOBAL_CFG={}", global_cfg))
         .arg("run")
         .spawn()?;
     child.wait()?;
     Ok(())
+}
+
+fn _global_cfg(conf: &BTreeMap<String, String>) -> String {
+    let mut items : Vec<String> = vec![];
+    for (k, v) in conf {
+        if v == "y" {
+            items.push(format!("--cfg={}", k));
+        } else {
+            items.push(format!("--cfg={}={}", k, v));
+        }
+    }
+
+    println!("{:?}", items);
+    items.join(" ")
 }
 
 fn default_arch() -> String {
@@ -174,10 +197,15 @@ fn default_arch() -> String {
     }
 }
 
-fn blk_config() -> String {
-    if let Ok(conf) = fs::read_to_string(CONFIG_FILE) {
-        assert_eq!(conf.trim(), "BLK=y");
-        "y".to_owned()
+fn default_root() -> String {
+    let root = fs::read_to_string(ROOT_FILE).unwrap();
+    root.trim().to_owned()
+}
+
+fn blk_config(conf: &BTreeMap<String, String>) -> String {
+    if let Some(v) = conf.get("blk") {
+        assert_eq!(v, "y");
+        v.clone()
     } else {
         "n".to_owned()
     }
@@ -194,8 +222,51 @@ fn create_project(args: &NewArgs) -> Result<()> {
     let url = get_root_url(&args.root, &args.name)?;
     println!("root url: {} -> {}", args.root, url);
     setup_root(&args.root, &url, &args.name)?;
+
+    // Change current directory
+    let root = Path::new(&args.name);
+    assert!(env::set_current_dir(&root).is_ok());
+
+    // Clone root_component
+    _get(&args.root)?;
+
+    // Record location of root mod
+    let (_, repo) = url.rsplit_once('/').unwrap();
+    fs::write(ROOT_FILE, format!("{}/{}", repo, &args.root))?;
+
     println!("Create proj ok!");
     Ok(())
+}
+
+fn prepare() -> Result<()> {
+    let conf = parse_conf()?;
+    if let Some(v) = conf.get("blk") {
+        assert_eq!(v, "y");
+        if Path::new("disk.img").exists() {
+            return Ok(());
+        }
+        let mut child = process::Command::new("make").arg("disk_img")
+            .spawn()?;
+        child.wait()?;
+    }
+    Ok(())
+}
+
+fn parse_conf() -> Result<BTreeMap<String, String>> {
+    let arch = default_arch();
+    let root = default_root();
+    let path = format!("{}/defconfig/{}", root, arch);
+    let content = fs::read_to_string(&path)?;
+    let mut conf: BTreeMap<String, String> = BTreeMap::new();
+    for line in content.split('\n') {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let (k, v) = line.split_once('=').unwrap();
+        conf.insert(k.to_owned(), v.to_owned());
+    }
+    Ok(conf)
 }
 
 fn setup_root(root: &str, url: &str, path: &str) -> Result<()> {
@@ -220,6 +291,10 @@ fn setup_root(root: &str, url: &str, path: &str) -> Result<()> {
 
 fn get(args: &ModArgs) -> Result<()> {
     let name = args.name.trim_end_matches('/');
+    _get(name)
+}
+
+fn _get(name: &str) -> Result<()> {
     let url = get_mod_url(name)?;
     let (_, repo) = url.rsplit_once('/').unwrap();
     if fs::metadata(repo).is_err() {

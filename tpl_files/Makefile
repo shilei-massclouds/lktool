@@ -49,6 +49,7 @@ QEMU_LOG ?= y
 NET_DUMP ?= n
 NET_DEV ?= user
 INIT_CMD ?=
+GLOBAL_CFG ?=
 
 # Network options
 IP ?= 10.0.2.15
