@@ -224,6 +224,13 @@ endif
 linux_apps:
 	@make -C payload
 
+install_apps:
+ifeq ($(wildcard $(DISK_IMG)),)
+	@printf "$(YELLOW_C)warning$(END_C): image \"$(DISK_IMG)\" needs to be built first!\n"
+else
+	$(call $(ARCH)_install_apps,$(DISK_IMG))
+endif
+
 clean: clean_c
 	rm -rf $(APP)/*.bin $(APP)/*.elf $(APP)/*.lds
 	cargo clean

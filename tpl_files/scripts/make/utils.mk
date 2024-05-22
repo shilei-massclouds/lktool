@@ -37,3 +37,31 @@ define build_linux_image
   @sudo umount ./mnt
   @rm -rf mnt
 endef
+
+define riscv64_install_apps
+  @mkdir -p ./mnt
+  @sudo mount $(1) ./mnt
+  @sudo mkdir -p ./mnt/lib
+  @sudo cp /usr/riscv64-linux-gnu/lib/ld-linux-riscv64-lp64d.so.1 ./mnt/lib/
+  @sudo cp /usr/riscv64-linux-gnu/lib/libc.so.6 ./mnt/lib/
+  @sudo cp -r ./btp/build/riscv64/sbin ./mnt/
+  ls -l ./mnt/lib
+  ls -l ./mnt/sbin
+  @sudo umount ./mnt
+  @rm -rf mnt
+endef
+
+define x86_64_install_apps
+  @mkdir -p ./mnt
+  @sudo mount $(1) ./mnt
+  @sudo mkdir -p ./mnt/lib
+  @sudo mkdir -p ./mnt/lib64
+  @sudo cp /lib/x86_64-linux-gnu/libc.so.6 ./mnt/lib/
+  @sudo cp /lib64/ld-linux-x86-64.so.2 ./mnt/lib64/
+  @sudo cp -r ./btp/build/x86_64/sbin ./mnt/
+  ls -l ./mnt/lib
+  ls -l ./mnt/lib64
+  ls -l ./mnt/sbin
+  @sudo umount ./mnt
+  @rm -rf mnt
+endef
