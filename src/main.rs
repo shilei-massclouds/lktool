@@ -178,6 +178,10 @@ fn run() -> Result<()> {
 fn _global_cfg(conf: &BTreeMap<String, String>) -> String {
     let mut items : Vec<String> = vec![];
     for (k, v) in conf {
+        if v == "n" {
+            continue;
+        }
+
         if v == "y" {
             items.push(format!("--cfg={}", k));
         } else {
@@ -204,11 +208,11 @@ fn default_root() -> String {
 
 fn blk_config(conf: &BTreeMap<String, String>) -> String {
     if let Some(v) = conf.get("blk") {
-        assert_eq!(v, "y");
-        v.clone()
-    } else {
-        "n".to_owned()
+        if v == "y" {
+            return v.clone();
+        }
     }
+    "n".to_owned()
 }
 
 fn create_project(args: &NewArgs) -> Result<()> {
@@ -256,7 +260,8 @@ fn parse_conf() -> Result<BTreeMap<String, String>> {
     let arch = default_arch();
     let root = default_root();
     let path = format!("{}/defconfig/{}", root, arch);
-    let content = fs::read_to_string(&path)?;
+    let content = fs::read_to_string(&path)
+        .inspect_err(|_| eprintln!("Bad conf: {}", path))?;
     let mut conf: BTreeMap<String, String> = BTreeMap::new();
     for line in content.split('\n') {
         let line = line.trim();

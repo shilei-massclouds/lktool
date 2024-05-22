@@ -14,6 +14,7 @@ org = "ssh://git@github.com/shilei-massclouds"
 [mod_list]
 arch_boot = "arch_boot"
 axconfig = "axconfig"
+mm = "mm"
 axdriver = "axdriver"
 memory_addr = "memory_addr"
 #hal_base = "hal_base"
@@ -51,6 +52,7 @@ fstree = "fstree"
 axfile = "axfile"
 axio = "axio"
 capability = "capability"
+filetable = "filetable"
 
 # Root components list
 # Styles are just as [mod_list]
@@ -63,3 +65,5 @@ rt_mutex = "mutex"
 rt_axhal = "axhal"
 rt_axmount = "axmount"
 rt_driver_virtio = "driver_virtio"
+rt_task = "task"
+rt_fork = "fork"
