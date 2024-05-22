@@ -8,6 +8,7 @@ use anyhow::{Result, anyhow};
 const DEFAULT_ARCH_FILE: &str = ".default_arch";
 const DEFAULT_ARCH: &str = "riscv64";
 const ROOT_FILE: &str = ".root";
+const BTP_URL: &str = "git@github.com:shilei-massclouds/btp.git";
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -246,10 +247,28 @@ fn prepare() -> Result<()> {
     let conf = parse_conf()?;
     if let Some(v) = conf.get("blk") {
         assert_eq!(v, "y");
-        if Path::new("disk.img").exists() {
-            return Ok(());
-        }
-        let mut child = process::Command::new("make").arg("disk_img")
+        let _ = fs::remove_dir_all("./btp");
+        let mut child = process::Command::new("git")
+            .arg("clone").arg(&BTP_URL).spawn()?;
+        child.wait()?;
+
+        let arch = default_arch();
+        let mut child = process::Command::new("make")
+            .arg("-C")
+            .arg("./btp")
+            .arg(format!("ARCH={}", arch))
+            .spawn()?;
+        child.wait()?;
+
+        let _ = fs::remove_file("./disk.img");
+        let mut child = process::Command::new("make")
+            .arg("disk_img")
+            .spawn()?;
+        child.wait()?;
+
+        let mut child = process::Command::new("make")
+            .arg("install_apps")
+            .arg(format!("ARCH={}", arch))
             .spawn()?;
         child.wait()?;
     }
