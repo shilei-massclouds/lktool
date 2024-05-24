@@ -19,6 +19,7 @@ git-fetch-with-cli = true
 ```sh
 git clone git@github.com:shilei-massclouds/lktool.git
 cd lktool
+git checkout split
 cargo build
 ```
 
@@ -36,49 +37,49 @@ export PATH=$PATH:/home/cloud/gitWork/lktool/target/debug
 lktool list -c root
 ```
 
-目前只有一个root组件rt_earlycon
+选择一个root组件rt_macrokernel为示例，基于它可以构建宏内核。
 
 ### 创建新的构造工程
 
 选一个路径作为当前工作目录，执行
 
 ```sh
-lktool new test1 --root rt_earlycon
-cd test1
+lktool new proj_mk --root rt_macrokernel
+cd proj_mk
 ls
 ```
 
-这样会在当前工作目录下产生一个名为test1的工程目录，入口组件是rt_earlycon。**注意**：目前只有root组件可以作为root的参数。
+这样会在当前工作目录下产生一个名为proj_mk的工程目录，入口组件是rt_macrokernel。**注意**：目前只有root组件可以作为root的参数。
 
-进入./test1目录，后面的命令都是在该目录下执行。可以先用ls查看一下，已经生成了一系列基础文件。
+进入./proj_mk目录，后面的命令都是在该目录下执行。可以先用ls查看一下，已经生成了一系列基础文件。
 
 ### 配置目标内核
 
 目前仅能选择体系结构
 
 ```sh
-lktool config [riscv64|x86_64|aarch64|loongarch64|um]
+lktool config [riscv64|x86_64|]
 ```
-
-其中，um表示内核在Host Linux的一个进程中运行。
 
 另外，下步需要能够支持lktool menuconfig，以精细的控制配置选项，以替代features控制的方式。
 
-### 构建目标内核
+### 为构建和运行内核作准备
+
+以当前要构建的宏内核为例，需要为它创建根文件系统磁盘，格式化和安装部分linux应用以进行测试验证。
 
 ```sh
-lktool build
+lktool prepare
 ```
 
-正常会产生一个最小的内核，它的功能是打印一句Hello，然后退出。所以该内核的作用仅是对early_console组件进行测试，并无其它的实际用途。
+当前目录下建立了disk.img磁盘文件，其中包含必要的linux应用程序和应用库。
 
-### 运行目标内核
+### 构建并运行目标内核
 
 ```rust
 lktool run
 ```
 
-正常会打印Hello，确认内核的构建和模块的测试成功。
+正常会切换用户态之后，启动第一个用户态应用init，该应用目前只是打印Hello，确认内核的构建和模块的测试成功。
 
 注：可以随时按照“配置目标内核”的方式切换当前体系结构，重新构建或运行目标内核。
 
