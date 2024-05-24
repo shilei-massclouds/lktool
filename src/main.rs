@@ -40,6 +40,8 @@ enum Commands {
     DepGraph,
     /// Check patched modules status
     Status,
+    /// Change root of the project
+    Chroot(RootArgs),
 }
 
 #[derive(Args)]
@@ -53,8 +55,14 @@ struct NewArgs {
 
 #[derive(Args)]
 struct ModArgs {
-    /// Name of this project
+    /// Name of target component
     name: String,
+}
+
+#[derive(Args)]
+struct RootArgs {
+    /// Root component of project
+    root: Option<String>,
 }
 
 #[derive(Args)]
@@ -105,6 +113,9 @@ fn main() {
         },
         Commands::Status => {
             status()
+        },
+        Commands::Chroot(args) => {
+            chroot(args)
         },
     }.unwrap_or_else(|e| {
         println!("{:?}", e);
@@ -243,6 +254,38 @@ fn create_project(args: &NewArgs) -> Result<()> {
     Ok(())
 }
 
+fn chroot(args: &RootArgs) -> Result<()> {
+    let old_root = default_root();
+    let (_, old) = old_root.split_once('/').unwrap();
+
+    let new_root = if let Some(ref root) = args.root {
+        root
+    } else {
+        println!("{}", old);
+        return Ok(());
+    };
+
+    // Todo: check that target mod actually exists in root_list.
+    let new = new_root.trim_end_matches('/');
+    assert!(new.starts_with("rt_"));
+
+    _put(old)?;
+
+    let url = get_root_url(&new, ".")?;
+    println!("root url: {} -> {}", new, url);
+    setup_root(&new, &url, ".")?;
+
+    // Clone root_component
+    _get(&new)?;
+
+    // Record location of root mod
+    let (_, repo) = url.rsplit_once('/').unwrap();
+    fs::write(ROOT_FILE, format!("{}/{}", repo, &new))?;
+
+    println!("chroot: {} -> {}", old, new);
+    Ok(())
+}
+
 fn prepare() -> Result<()> {
     let conf = parse_conf()?;
     if let Some(v) = conf.get("blk") {
@@ -279,8 +322,12 @@ fn parse_conf() -> Result<BTreeMap<String, String>> {
     let arch = default_arch();
     let root = default_root();
     let path = format!("{}/defconfig/{}", root, arch);
-    let content = fs::read_to_string(&path)
-        .inspect_err(|_| eprintln!("Bad conf: {}", path))?;
+    let content = if let Ok(content) = fs::read_to_string(&path) {
+        content
+    } else {
+        return Ok(BTreeMap::new());
+    };
+
     let mut conf: BTreeMap<String, String> = BTreeMap::new();
     for line in content.split('\n') {
         let line = line.trim();
@@ -294,7 +341,10 @@ fn parse_conf() -> Result<BTreeMap<String, String>> {
 }
 
 fn setup_root(root: &str, url: &str, path: &str) -> Result<()> {
+    let tpl_cargo_path = format!("{}/proj/tpl_Cargo.toml", path);
     let cargo_path = format!("{}/proj/Cargo.toml", path);
+    fs::copy(tpl_cargo_path, &cargo_path)?;
+
     let mut cargo_toml: Table = toml::from_str(&fs::read_to_string(&cargo_path)?)?;
     let dep_table = cargo_toml.get_mut("dependencies").unwrap().as_table_mut().unwrap();
     dep_table.insert(root.to_string(), toml::Value::Table(Table::new()));
@@ -306,7 +356,9 @@ fn setup_root(root: &str, url: &str, path: &str) -> Result<()> {
     fs::write(&cargo_path, toml::to_string(&cargo_toml)?)?;
 
     // Append root declaration
+    let tpl_path = format!("{}/proj/src/tpl_main.rs", path);
     let code_path = format!("{}/proj/src/main.rs", path);
+    fs::copy(tpl_path, &code_path)?;
     let mut code = fs::OpenOptions::new().append(true).open(code_path)?;
     let decl = format!("use {} as root;", root);
     code.write_all(decl.as_bytes())?;
@@ -351,6 +403,10 @@ fn _get(name: &str) -> Result<()> {
 
 fn put(args: &ModArgs) -> Result<()> {
     let name = args.name.trim_end_matches('/');
+    _put(name)
+}
+
+fn _put(name: &str) -> Result<()> {
     let url = get_mod_url(name)?;
     let (_, repo) = url.rsplit_once('/').unwrap();
     if fs::metadata(repo).is_err() {
