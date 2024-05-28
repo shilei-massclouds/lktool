@@ -63,6 +63,14 @@ sys = "sys"
 signal = "signal"
 handler_table = "handler_table"
 elf = "elf"
+fork = "fork"
+rust_fatfs = "rust_fatfs"
+axfs_vfs = "axfs_vfs"
+axfs_devfs = "axfs_devfs"
+axfs_ramfs = "axfs_ramfs"
+preempt_guard = "preempt_guard"
+spinpreempt = "spinpreempt"
+task = "task"
 
 # Root components list
 # Styles are just as [mod_list]
