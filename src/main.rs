@@ -214,10 +214,10 @@ fn default_arch() -> String {
     }
 }
 
-fn default_root() -> String {
-    let root = fs::read_to_string(ROOT_FILE)
-        .unwrap_or("early_console/rt_early_console".to_owned());
-    root.trim().to_owned()
+fn default_root() -> Option<String> {
+    fs::read_to_string(ROOT_FILE).map(|root| {
+        root.trim().to_owned()
+    }).ok()
 }
 
 fn blk_config(conf: &BTreeMap<String, String>) -> String {
@@ -262,7 +262,7 @@ fn create_project(args: &NewArgs) -> Result<()> {
 }
 
 fn chroot(args: &RootArgs) -> Result<()> {
-    let old_root = default_root();
+    let old_root = default_root().unwrap_or("/[unset]".to_owned());
     let (_, old) = old_root.split_once('/').unwrap();
 
     let new_root = if let Some(ref root) = args.root {
@@ -276,13 +276,17 @@ fn chroot(args: &RootArgs) -> Result<()> {
     let new = new_root.trim_end_matches('/');
     assert!(new.starts_with("rt_"));
 
-    _put(old)?;
+    if !local_mode() {
+        _put(old)?;
+    }
 
     let url = get_root_url(&new, ".")?;
     setup_root(&new, &url, ".")?;
 
     // Clone root_component
-    _get(&new)?;
+    if !local_mode() {
+        _get(&new)?;
+    }
 
     // Record location of root mod
     let (_, repo) = url.rsplit_once('/').unwrap();
@@ -326,7 +330,9 @@ fn prepare() -> Result<()> {
 
 fn parse_conf() -> Result<BTreeMap<String, String>> {
     let arch = default_arch();
-    let root = default_root();
+    let root = default_root().unwrap_or_else(|| {
+        panic!("Please set root first: 'lk chroot <root_mod>'.");
+    });
     let path = format!("{}/defconfig/{}", root, arch);
     let content = if let Ok(content) = fs::read_to_string(&path) {
         content
