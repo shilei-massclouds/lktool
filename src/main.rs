@@ -9,6 +9,7 @@ const DEFAULT_ARCH_FILE: &str = ".default_arch";
 const DEFAULT_ARCH: &str = "riscv64";
 const ROOT_FILE: &str = ".root";
 const BTP_URL: &str = "git@github.com:shilei-massclouds/btp.git";
+const LOCAL_MODE: &str = ".local_mode";
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -214,7 +215,8 @@ fn default_arch() -> String {
 }
 
 fn default_root() -> String {
-    let root = fs::read_to_string(ROOT_FILE).unwrap();
+    let root = fs::read_to_string(ROOT_FILE)
+        .unwrap_or("early_console/rt_early_console".to_owned());
     root.trim().to_owned()
 }
 
@@ -228,6 +230,11 @@ fn blk_config(conf: &BTreeMap<String, String>) -> String {
 }
 
 fn create_project(args: &NewArgs) -> Result<()> {
+    if local_mode() {
+        println!("Disable this subcommand in local mode.");
+        return Ok(());
+    }
+
     println!("new {} --root {}", args.name, args.root);
     let tool_path = get_tool_path().unwrap();
     let tpl_files = tool_path + "/tpl_files/*";
@@ -272,7 +279,6 @@ fn chroot(args: &RootArgs) -> Result<()> {
     _put(old)?;
 
     let url = get_root_url(&new, ".")?;
-    println!("root url: {} -> {}", new, url);
     setup_root(&new, &url, ".")?;
 
     // Clone root_component
@@ -341,6 +347,7 @@ fn parse_conf() -> Result<BTreeMap<String, String>> {
 }
 
 fn setup_root(root: &str, url: &str, path: &str) -> Result<()> {
+    println!("root url: {} -> {}", root, url);
     let tpl_cargo_path = format!("{}/proj/tpl_Cargo.toml", path);
     let cargo_path = format!("{}/proj/Cargo.toml", path);
     fs::copy(tpl_cargo_path, &cargo_path)?;
@@ -371,6 +378,11 @@ fn get(args: &ModArgs) -> Result<()> {
 }
 
 fn _get(name: &str) -> Result<()> {
+    if local_mode() {
+        println!("Disable this subcommand in local mode.");
+        return Ok(());
+    }
+
     let url = get_mod_url(name)?;
     let (_, repo) = url.rsplit_once('/').unwrap();
     if fs::metadata(repo).is_err() {
@@ -407,6 +419,11 @@ fn put(args: &ModArgs) -> Result<()> {
 }
 
 fn _put(name: &str) -> Result<()> {
+    if local_mode() {
+        println!("Disable this subcommand in local mode.");
+        return Ok(());
+    }
+
     let url = get_mod_url(name)?;
     let (_, repo) = url.rsplit_once('/').unwrap();
     if fs::metadata(repo).is_err() {
@@ -505,4 +522,8 @@ fn depgraph() -> Result<()> {
     let cmd = "cargo depgraph --root proj --hide boot | dot -Tpng > depgraph.png";
     let _output = process::Command::new("sh").arg("-c").arg(cmd).output()?;
     Ok(())
+}
+
+fn local_mode() -> bool {
+    fs::metadata(LOCAL_MODE).is_ok()
 }
