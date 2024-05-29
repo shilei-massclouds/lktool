@@ -32,7 +32,7 @@ enum Commands {
     /// Build kernel
     Build,
     /// Run kernel
-    Run,
+    Run(RunArgs),
     /// Get module from repo and modify it locally
     Get(ModArgs),
     /// Put module back to repo
@@ -81,6 +81,12 @@ struct ListArgs {
     class: Option<String>,
 }
 
+#[derive(Args)]
+struct RunArgs {
+    /// Init process for monolithic kernel
+    process: Option<String>,
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -100,8 +106,8 @@ fn main() {
         Commands::Build => {
             build()
         },
-        Commands::Run => {
-            run()
+        Commands::Run(args) => {
+            run(args)
         },
         Commands::Get(args) => {
             get(args)
@@ -173,15 +179,18 @@ fn build() -> Result<()> {
     Ok(())
 }
 
-fn run() -> Result<()> {
+fn run(args: &RunArgs) -> Result<()> {
     let arch = default_arch();
     let conf = parse_conf()?;
     let has_blk = blk_config(&conf);
     let global_cfg = _global_cfg(&conf);
+    let default_init = String::from("/sbin/init");
+    let init_cmd = args.process.as_ref().unwrap_or(&default_init);
     let mut child = process::Command::new("make")
         .arg(format!("ARCH={}", arch))
         .arg(format!("BLK={}", has_blk))
         .arg(format!("GLOBAL_CFG={}", global_cfg))
+        .arg(format!("INIT_CMD={}", init_cmd))
         .arg("run")
         .spawn()?;
     child.wait()?;
@@ -319,13 +328,22 @@ fn prepare() -> Result<()> {
             .spawn()?;
         child.wait()?;
 
+        let ltp_top = ltp_top().unwrap_or("/tmp".to_owned());
         let mut child = process::Command::new("make")
             .arg("install_apps")
             .arg(format!("ARCH={}", arch))
+            .arg(format!("LTP={}", ltp_top))
             .spawn()?;
         child.wait()?;
     }
     Ok(())
+}
+
+fn ltp_top() -> Option<String> {
+    let conf = fs::read_to_string("lk.toml").ok()?;
+    let conf: Table = toml::from_str(&conf).ok()?;
+    let ltp = conf.get("ltp")?;
+    Some(ltp.get("path")?.to_string())
 }
 
 fn parse_conf() -> Result<BTreeMap<String, String>> {
