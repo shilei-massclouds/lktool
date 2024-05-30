@@ -244,7 +244,6 @@ fn create_project(args: &NewArgs) -> Result<()> {
         return Ok(());
     }
 
-    println!("new {} --root {}", args.name, args.root);
     let tool_path = get_tool_path().unwrap();
     let tpl_files = tool_path + "/tpl_files/*";
     fs::create_dir(&args.name)?;
@@ -252,7 +251,6 @@ fn create_project(args: &NewArgs) -> Result<()> {
     let _output = process::Command::new("sh").arg("-c").arg(cp_cmd).output()?;
 
     let url = get_root_url(&args.root, &args.name)?;
-    println!("root url: {} -> {}", args.root, url);
     setup_root(&args.root, &url, &args.name)?;
 
     // Change current directory
