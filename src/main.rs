@@ -309,10 +309,11 @@ fn prepare() -> Result<()> {
     let conf = parse_conf()?;
     if let Some(v) = conf.get("blk") {
         assert_eq!(v, "y");
-        let _ = fs::remove_dir_all("./btp");
-        let mut child = process::Command::new("git")
-            .arg("clone").arg(&BTP_URL).spawn()?;
-        child.wait()?;
+        if fs::metadata("./btp").is_err() {
+            let mut child = process::Command::new("git")
+                .arg("clone").arg(&BTP_URL).spawn()?;
+            child.wait()?;
+        }
 
         let arch = default_arch();
         let mut child = process::Command::new("make")
