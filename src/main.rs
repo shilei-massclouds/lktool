@@ -1,4 +1,4 @@
-use std::{env, process, fs, io::Write};
+use std::{env, process, fs};
 use std::path::Path;
 use std::collections::BTreeMap;
 use clap::{Args, Parser, Subcommand};
@@ -166,11 +166,13 @@ fn status() -> Result<()> {
 }
 
 fn build() -> Result<()> {
+    let root = default_root().expect("Please set root by 'chroot'.");
     let arch = default_arch();
     let conf = parse_conf()?;
     let has_blk = blk_config(&conf);
     let global_cfg = _global_cfg(&conf);
     let mut child = process::Command::new("make")
+        .arg(format!("A={}", root))
         .arg(format!("ARCH={}", arch))
         .arg(format!("BLK={}", has_blk))
         .arg(format!("GLOBAL_CFG={}", global_cfg))
@@ -180,6 +182,7 @@ fn build() -> Result<()> {
 }
 
 fn run(args: &RunArgs) -> Result<()> {
+    let root = default_root().expect("Please set root by 'chroot'.");
     let arch = default_arch();
     let conf = parse_conf()?;
     let has_blk = blk_config(&conf);
@@ -187,6 +190,7 @@ fn run(args: &RunArgs) -> Result<()> {
     let default_init = String::from("/sbin/init");
     let init_cmd = args.process.as_ref().unwrap_or(&default_init);
     let mut child = process::Command::new("make")
+        .arg(format!("A={}", root))
         .arg(format!("ARCH={}", arch))
         .arg(format!("BLK={}", has_blk))
         .arg(format!("GLOBAL_CFG={}", global_cfg))
@@ -251,7 +255,7 @@ fn create_project(args: &NewArgs) -> Result<()> {
     let _output = process::Command::new("sh").arg("-c").arg(cp_cmd).output()?;
 
     let url = get_root_url(&args.root, &args.name)?;
-    setup_root(&args.root, &url, &args.name)?;
+    println!("root url: {} -> {}", &args.root, url);
 
     // Change current directory
     let root = Path::new(&args.name);
@@ -288,7 +292,7 @@ fn chroot(args: &RootArgs) -> Result<()> {
     }
 
     let url = get_root_url(&new, ".")?;
-    setup_root(&new, &url, ".")?;
+    println!("root url: {} -> {}", new_root, url);
 
     // Clone root_component
     if !local_mode() {
@@ -367,32 +371,6 @@ fn parse_conf() -> Result<BTreeMap<String, String>> {
         conf.insert(k.to_owned(), v.to_owned());
     }
     Ok(conf)
-}
-
-fn setup_root(root: &str, url: &str, path: &str) -> Result<()> {
-    println!("root url: {} -> {}", root, url);
-    let tpl_cargo_path = format!("{}/proj/tpl_Cargo.toml", path);
-    let cargo_path = format!("{}/proj/Cargo.toml", path);
-    fs::copy(tpl_cargo_path, &cargo_path)?;
-
-    let mut cargo_toml: Table = toml::from_str(&fs::read_to_string(&cargo_path)?)?;
-    let dep_table = cargo_toml.get_mut("dependencies").unwrap().as_table_mut().unwrap();
-    dep_table.insert(root.to_string(), toml::Value::Table(Table::new()));
-    let detail_table = dep_table.get_mut(root).unwrap().as_table_mut().unwrap();
-    detail_table.insert(
-        String::from("git"),
-        toml::Value::String(format!("{}", url)),
-    );
-    fs::write(&cargo_path, toml::to_string(&cargo_toml)?)?;
-
-    // Append root declaration
-    let tpl_path = format!("{}/proj/src/tpl_main.rs", path);
-    let code_path = format!("{}/proj/src/main.rs", path);
-    fs::copy(tpl_path, &code_path)?;
-    let mut code = fs::OpenOptions::new().append(true).open(code_path)?;
-    let decl = format!("use {} as root;", root);
-    code.write_all(decl.as_bytes())?;
-    Ok(())
 }
 
 fn get(args: &ModArgs) -> Result<()> {
@@ -542,7 +520,9 @@ fn get_tool_path() -> Option<String> {
 }
 
 fn depgraph() -> Result<()> {
-    let cmd = "cargo depgraph --root proj --hide boot | dot -Tpng > depgraph.png";
+    let root = default_root().expect("Please set root by 'chroot'.");
+    let (_, root) = root.split_once('/').unwrap();
+    let cmd = format!("cargo depgraph --root {root} --hide boot | dot -Tpng > {root}.png");
     let _output = process::Command::new("sh").arg("-c").arg(cmd).output()?;
     Ok(())
 }
